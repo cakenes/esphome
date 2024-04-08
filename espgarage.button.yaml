@@ -1,0 +1,34 @@
+type: custom:button-card
+entity: switch.espgarage_garage_switch
+show_name: true
+name: Left
+show_label: true
+label: |
+  [[[
+    return states['sensor.espgarage_garage_state'].state;
+  ]]]
+icon: |
+  [[[
+    var state = states['sensor.espgarage_garage_state'].state;
+    switch(state) {
+      case 'Closed': return 'mdi:garage';
+      case 'Closing':
+      case 'Stopped':
+      case 'Opening': return 'mdi:garage-alert';
+      case 'Open': return 'mdi:garage-open';
+      default: return 'mdi:garage-alert';
+    }
+  ]]]
+styles:
+  icon:
+    - color: |
+        [[[
+          var state = states['sensor.espgarage_garage_state'].state;
+          switch(state) {
+            case 'Closed': return '#44739e';
+            case 'Closing':
+            case 'Opening': return '#3f5f35';
+            case 'Open': return '#ffc107';
+            default: return '#8b0000';
+          }
+        ]]]
