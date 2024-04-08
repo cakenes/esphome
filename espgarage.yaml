@@ -1,0 +1,111 @@
+esphome:
+  name: espgarage
+  friendly_name: espgarage
+
+esp8266:
+  board: esp01_1m
+
+logger:
+
+api:
+  encryption:
+    key: "KEY"
+
+ota:
+  password: "STRONK_PASSWORD
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  manual_ip: 
+    static_ip: 0.0.0.0
+    gateway: 0.0.0.0
+    subnet: 0.0.0.0
+
+  ap:
+    ssid: "Espgarage Fallback Hotspot"
+    password: "STRONK_PASSWORD"
+
+globals:
+  - id: door_state
+    type: int
+    initial_value: '0'
+    restore_value: True
+
+binary_sensor:
+  - platform: gpio
+    name: "Garage Sensor"
+    id: door_sensor
+    pin:
+      number: 0
+      inverted: True
+    device_class: garage_door
+    on_state:
+      then:
+        - if:
+            condition:
+              binary_sensor.is_on: door_sensor
+            then:
+              - lambda: |-
+                  id(door_state) = 5;
+                  id(door_state_text).publish_state("Open");
+
+text_sensor:
+  - platform: template
+    name: "Garage State"
+    id: door_state_text
+    update_interval: never
+
+script:
+  - id: closing_timer
+    then:
+      - delay: 5s
+      - if:
+          condition:
+            binary_sensor.is_on: door_sensor
+          then:
+            - lambda: |-
+                id(door_state) = 5;
+                id(door_state_text).publish_state("Open");
+                id(closing_timer).stop();
+          else:
+            - delay: 8s
+            - lambda: |-
+                id(door_state) = 0;
+                id(door_state_text).publish_state("Closed");
+      
+switch:
+  - platform: gpio
+    pin: 2
+    id: door_switch
+    name: "Garage Switch"
+    on_turn_on:
+      then:
+        - lambda: |-
+            switch (id(door_state)) {
+                case 0:       // Closed
+                    id(door_state) = 1;
+                    id(door_state_text).publish_state("Opening");
+                    break;
+                case 1:       // Opening
+                    id(door_state) = 2;
+                    id(door_state_text).publish_state("Stopped");
+                    break;
+                case 2:       // OpeningStopped
+                case 5:       // Open
+                    id(door_state) = 3;
+                    id(door_state_text).publish_state("Closing");
+                    id(closing_timer).execute();
+                    break;
+                case 3:       // Closing
+                    id(door_state) = 4;
+                    id(door_state_text).publish_state("Stopped");
+                    id(closing_timer).stop();
+                    break;
+                case 4:       // ClosingStopped
+                    id(door_state) = 1;
+                    id(door_state_text).publish_state("Opening");
+                    break;
+            }
+        - delay: 500ms
+        - switch.turn_off: door_switch
