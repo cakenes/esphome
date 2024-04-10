@@ -12,7 +12,7 @@ api:
     key: "KEY"
 
 ota:
-  password: "STRONK_PASSWORD
+  password: "STRONK_PASSWORD"
 
 wifi:
   ssid: !secret wifi_ssid
@@ -37,9 +37,16 @@ binary_sensor:
     name: "Garage Sensor"
     id: door_sensor
     pin:
-      number: 0
-      inverted: True
+      number: 2
+      inverted: true
+      mode:
+        input: true
+        pullup: true
     device_class: garage_door
+    filters:
+      - delayed_on_off:
+          time_on: 1s
+          time_off: 1s
     on_state:
       then:
         - if:
@@ -49,6 +56,13 @@ binary_sensor:
               - lambda: |-
                   id(door_state) = 5;
                   id(door_state_text).publish_state("Open");
+            else:
+              - lambda: |-
+                  if (id(door_state) == 5) {
+                    id(door_state) = 3;
+                    id(door_state_text).publish_state("Closing");
+                    id(closing_timer).execute();
+                  }
 
 text_sensor:
   - platform: template
@@ -76,7 +90,7 @@ script:
       
 switch:
   - platform: gpio
-    pin: 2
+    pin: 0
     id: door_switch
     name: "Garage Switch"
     on_turn_on:
